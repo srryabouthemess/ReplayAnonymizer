@@ -6,9 +6,10 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
-        if (e.Args.Length == 4 && e.Args[0] == "--anonymize")
+        if (e.Args.Length is 4 or 5 && e.Args[0] == "--anonymize")
         {
-            OsrAnonymizer.WriteAnonymizedCopy(e.Args[1], e.Args[2], e.Args[3]);
+            bool removeSmoke = e.Args.Length == 5 && e.Args[4] == "--remove-smoke";
+            OsrAnonymizer.WriteAnonymizedCopy(e.Args[1], e.Args[2], e.Args[3], removeSmoke);
             Shutdown();
             return;
         }

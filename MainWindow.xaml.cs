@@ -276,6 +276,7 @@ public partial class MainWindow : Window
         var snapshot = Replays.ToList();
         string folder = OutputFolderText.Text;
         int namingMode = OutputNamingCombo.SelectedIndex;
+        bool removeSmoke = RemoveSmokeCheck.IsChecked == true;
         int completed = 0;
         var failures = new List<string>();
         await Task.Run(() =>
@@ -287,7 +288,7 @@ public partial class MainWindow : Window
                 {
                     string safeAlias = string.Concat(item.AnonymousName.Select(c => System.IO.Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
                     string destination = UniquePath(folder, BuildOutputFileName(item, safeAlias, i + 1, namingMode));
-                    OsrAnonymizer.WriteAnonymizedCopy(item.Path, destination, item.AnonymousName);
+                    OsrAnonymizer.WriteAnonymizedCopy(item.Path, destination, item.AnonymousName, removeSmoke);
                     completed++;
                 }
                 catch (Exception ex) { failures.Add($"{item.FileName}: {ex.Message}"); }

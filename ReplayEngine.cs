@@ -32,7 +32,7 @@ internal static class OsrAnonymizer
         return ReadOsuString(data, ref position);
     }
 
-    public static void WriteAnonymizedCopy(string source, string destination, string newName)
+    public static void WriteAnonymizedCopy(string source, string destination, string newName, bool removeSmoke = false)
     {
         if (string.IsNullOrWhiteSpace(newName)) throw new ArgumentException("O nome editado não pode ficar vazio.");
         byte[] data = File.ReadAllBytes(source);
@@ -45,6 +45,9 @@ internal static class OsrAnonymizer
         ReadOsuString(data, ref position);
         int playerEnd = position;
         ReplayLayout layout = ReadReplayLayout(data, version, playerEnd);
+        byte[] replayData = removeSmoke
+            ? RemoveSmokeFromReplay(data.AsSpan(layout.ReplayDataOffset, layout.ReplayDataLength).ToArray())
+            : data.AsSpan(layout.ReplayDataOffset, layout.ReplayDataLength).ToArray();
         byte[]? scoreInfo = layout.ScoreInfoDataLength > 0
             ? AnonymizeLazerScoreInfo(data.AsSpan(layout.ScoreInfoDataOffset, layout.ScoreInfoDataLength).ToArray()) : null;
         byte[] encodedName = EncodeOsuString(newName.Trim());
@@ -53,11 +56,17 @@ internal static class OsrAnonymizer
         using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         output.Write(data, 0, playerStart);
         output.Write(encodedName);
-        output.Write(data, playerEnd, layout.OnlineIdOffset - playerEnd);
+        output.Write(data, playerEnd, layout.ReplayLengthOffset - playerEnd);
+        output.Write(BitConverter.GetBytes(replayData.Length));
+        output.Write(replayData);
+        int oldReplayEnd = layout.ReplayDataOffset + layout.ReplayDataLength;
+        output.Write(data, oldReplayEnd, layout.OnlineIdOffset - oldReplayEnd);
         if (layout.OnlineIdLength == 8) output.Write(BitConverter.GetBytes(-1L));
         else if (layout.OnlineIdLength == 4) output.Write(BitConverter.GetBytes(-1));
         if (layout.ScoreInfoLengthOffset >= 0 && scoreInfo is not null)
         {
+            int onlineIdEnd = layout.OnlineIdOffset + layout.OnlineIdLength;
+            output.Write(data, onlineIdEnd, layout.ScoreInfoLengthOffset - onlineIdEnd);
             output.Write(BitConverter.GetBytes(scoreInfo.Length));
             output.Write(scoreInfo);
             int oldEnd = layout.ScoreInfoDataOffset + layout.ScoreInfoDataLength;
@@ -77,9 +86,11 @@ internal static class OsrAnonymizer
         ReadOsuString(data, ref position);
         position += 8;
         EnsureAvailable(data, position, 4);
+        int replayLengthOffset = position;
         int replayLength = BitConverter.ToInt32(data, position);
         if (replayLength < 0) throw new InvalidDataException("Tamanho inválido dos frames do replay.");
         position += 4;
+        int replayDataOffset = position;
         EnsureAvailable(data, position, replayLength);
         position += replayLength;
         int onlineIdOffset = position;
@@ -96,7 +107,28 @@ internal static class OsrAnonymizer
             dataOffset = position;
             EnsureAvailable(data, position, dataLength);
         }
-        return new ReplayLayout(onlineIdOffset, onlineIdLength, lengthOffset, dataOffset, dataLength);
+        return new ReplayLayout(replayLengthOffset, replayDataOffset, replayLength, onlineIdOffset, onlineIdLength, lengthOffset, dataOffset, dataLength);
+    }
+
+    private static byte[] RemoveSmokeFromReplay(byte[] compressedData)
+    {
+        string replay = Encoding.UTF8.GetString(DecompressLzma(compressedData));
+        string[] frames = replay.Split(',');
+
+        for (int i = 0; i < frames.Length; i++)
+        {
+            string[] values = frames[i].Split('|');
+            if (values.Length < 4 || values[0] == "-12345" ||
+                !int.TryParse(values[3], System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture, out int buttons)) continue;
+
+            int buttonsWithoutSmoke = buttons & ~16;
+            if (buttonsWithoutSmoke == buttons) continue;
+            values[3] = buttonsWithoutSmoke.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            frames[i] = string.Join('|', values);
+        }
+
+        return CompressLzma(Encoding.UTF8.GetBytes(string.Join(',', frames)));
     }
 
     private static byte[] AnonymizeLazerScoreInfo(byte[] compressedData)
@@ -187,5 +219,8 @@ internal static class OsrAnonymizer
         if (position < 0 || count < 0 || position > data.Length - count) throw new InvalidDataException("Replay truncado ou inválido.");
     }
 
-    private readonly record struct ReplayLayout(int OnlineIdOffset, int OnlineIdLength, int ScoreInfoLengthOffset, int ScoreInfoDataOffset, int ScoreInfoDataLength);
+    private readonly record struct ReplayLayout(
+        int ReplayLengthOffset, int ReplayDataOffset, int ReplayDataLength,
+        int OnlineIdOffset, int OnlineIdLength,
+        int ScoreInfoLengthOffset, int ScoreInfoDataOffset, int ScoreInfoDataLength);
 }

@@ -24,6 +24,7 @@ Unlike legacy replay editors, it preserves replay frames while anonymizing both 
 - Choose safe output filenames: alias plus map information, alias plus sequence number, or the original filename.
 - Prefix every exported file with its three-digit table position so folder order matches app order.
 - Optionally use the same alias for every replay belonging to the same player.
+- Optionally remove smoke inputs while preserving cursor movement, timing, and all other buttons.
 - Always create separate copies; source files are never modified.
 
 ## Usage
@@ -51,7 +52,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ## How it works
 
-The `.osr` header stores the player name as a UTF-8 osu! string. Replay Anonymizer replaces that field and removes score/account identifiers that would allow lazer to resolve the original username and avatar. Replay frames are copied unchanged and are never decompressed or rebuilt.
+The `.osr` header stores the player name as a UTF-8 osu! string. Replay Anonymizer replaces that field and removes score/account identifiers that would allow lazer to resolve the original username and avatar. Replay frames remain unchanged by default. When smoke removal is enabled, the app decompresses the frame block, clears only the smoke bit (`16`) from each button state, and recompresses the complete block without changing timing, cursor positions, or other inputs.
 
 ## Privacy
 
