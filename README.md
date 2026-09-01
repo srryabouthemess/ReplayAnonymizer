@@ -2,7 +2,7 @@
 
 A small Windows application for anonymizing one or many osu! replay files (`.osr`). It supports both osu!stable and osu!lazer replays.
 
-Unlike legacy replay editors, it changes only the player-name field and preserves the rest of the file byte-for-byte, including lazer's additional score-information block.
+Unlike legacy replay editors, it preserves replay frames while anonymizing both the visible player-name field and the account identifiers stored in lazer's additional score-information block.
 
 ## Features
 
@@ -40,7 +40,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ## How it works
 
-The `.osr` header stores the player name as a UTF-8 osu! string. Replay Anonymizer replaces only that encoded field and copies every following byte unchanged. It does not decompress or rebuild replay frames.
+The `.osr` header stores the player name as a UTF-8 osu! string. Replay Anonymizer replaces that field and removes score/account identifiers that would allow lazer to resolve the original username and avatar. Replay frames are copied unchanged and are never decompressed or rebuilt.
 
 ## Current limitations
 

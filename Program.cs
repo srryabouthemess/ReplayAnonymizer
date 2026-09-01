@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Nodes;
+using SharpCompress.Compressors.LZMA;
 
 namespace ReplayAnonymizer;
 
@@ -44,11 +46,17 @@ internal static class OsrAnonymizer
         if (data.Length < 6)
             throw new InvalidDataException("Arquivo pequeno demais para ser um replay do osu!.");
 
+        int version = BitConverter.ToInt32(data, 1);
         int position = 5;
         ReadOsuString(data, ref position); // beatmap hash
         int playerStart = position;
         ReadOsuString(data, ref position);
         int playerEnd = position;
+
+        ReplayLayout layout = ReadReplayLayout(data, version, playerEnd);
+        byte[]? anonymizedScoreInfo = layout.ScoreInfoDataLength > 0
+            ? AnonymizeLazerScoreInfo(data.AsSpan(layout.ScoreInfoDataOffset, layout.ScoreInfoDataLength).ToArray())
+            : null;
 
         byte[] encodedName = EncodeOsuString(newName.Trim());
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
@@ -56,8 +64,123 @@ internal static class OsrAnonymizer
         using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         output.Write(data, 0, playerStart);
         output.Write(encodedName);
-        output.Write(data, playerEnd, data.Length - playerEnd);
+        output.Write(data, playerEnd, layout.OnlineIdOffset - playerEnd);
+
+        // Remove links to the submitted score in both the legacy header and lazer metadata.
+        if (layout.OnlineIdLength == 8)
+            output.Write(BitConverter.GetBytes(-1L));
+        else if (layout.OnlineIdLength == 4)
+            output.Write(BitConverter.GetBytes(-1));
+
+        if (layout.ScoreInfoLengthOffset >= 0 && anonymizedScoreInfo is not null)
+        {
+            output.Write(BitConverter.GetBytes(anonymizedScoreInfo.Length));
+            output.Write(anonymizedScoreInfo);
+            int oldScoreInfoEnd = layout.ScoreInfoDataOffset + layout.ScoreInfoDataLength;
+            output.Write(data, oldScoreInfoEnd, data.Length - oldScoreInfoEnd);
+        }
+        else
+        {
+            int remainderOffset = layout.OnlineIdOffset + layout.OnlineIdLength;
+            output.Write(data, remainderOffset, data.Length - remainderOffset);
+        }
     }
+
+    private static ReplayLayout ReadReplayLayout(byte[] data, int version, int positionAfterPlayer)
+    {
+        int position = positionAfterPlayer;
+        ReadOsuString(data, ref position); // replay hash
+        position += 12; // hit counts
+        position += 4 + 2 + 1 + 4; // score, combo, perfect, mods
+        ReadOsuString(data, ref position); // life graph
+        position += 8; // timestamp
+        EnsureAvailable(data, position, 4);
+        int replayLength = BitConverter.ToInt32(data, position);
+        if (replayLength < 0) throw new InvalidDataException("Tamanho inválido dos frames do replay.");
+        position += 4;
+        EnsureAvailable(data, position, replayLength);
+        position += replayLength;
+
+        int onlineIdOffset = position;
+        int onlineIdLength = version >= 20140721 ? 8 : version >= 20121008 ? 4 : 0;
+        EnsureAvailable(data, position, onlineIdLength);
+        position += onlineIdLength;
+
+        int scoreInfoLengthOffset = -1;
+        int scoreInfoDataOffset = -1;
+        int scoreInfoDataLength = 0;
+        if (version >= 30000001 && data.Length - position >= 4)
+        {
+            scoreInfoLengthOffset = position;
+            scoreInfoDataLength = BitConverter.ToInt32(data, position);
+            if (scoreInfoDataLength < 0) throw new InvalidDataException("Tamanho inválido das informações do lazer.");
+            position += 4;
+            scoreInfoDataOffset = position;
+            EnsureAvailable(data, position, scoreInfoDataLength);
+        }
+
+        return new ReplayLayout(onlineIdOffset, onlineIdLength, scoreInfoLengthOffset, scoreInfoDataOffset, scoreInfoDataLength);
+    }
+
+    private static byte[] AnonymizeLazerScoreInfo(byte[] compressedData)
+    {
+        byte[] jsonBytes = DecompressLzma(compressedData);
+        JsonObject scoreInfo = JsonNode.Parse(jsonBytes)?.AsObject()
+            ?? throw new InvalidDataException("Metadados JSON do lazer inválidos.");
+
+        SetJsonNumber(scoreInfo, "UserID", 1);
+        SetJsonNumber(scoreInfo, "OnlineID", -1);
+        return CompressLzma(Encoding.UTF8.GetBytes(scoreInfo.ToJsonString()));
+    }
+
+    private static void SetJsonNumber(JsonObject json, string name, long value)
+    {
+        string normalizedName = name.Replace("_", string.Empty, StringComparison.Ordinal);
+        string? actualName = json.Select(pair => pair.Key)
+            .FirstOrDefault(key => string.Equals(
+                key.Replace("_", string.Empty, StringComparison.Ordinal),
+                normalizedName,
+                StringComparison.OrdinalIgnoreCase));
+        if (actualName is not null)
+            json[actualName] = value;
+    }
+
+    private static byte[] DecompressLzma(byte[] data)
+    {
+        if (data.Length < 13) throw new InvalidDataException("Bloco LZMA do lazer incompleto.");
+        byte[] properties = data[..5];
+        long outputSize = BitConverter.ToInt64(data, 5);
+        using var input = new MemoryStream(data, 13, data.Length - 13, writable: false);
+        using var lzma = LzmaStream.Create(properties, input, input.Length, outputSize, false);
+        using var output = new MemoryStream();
+        lzma.CopyTo(output);
+        return output.ToArray();
+    }
+
+    private static byte[] CompressLzma(byte[] data)
+    {
+        using var compressed = new MemoryStream();
+        byte[] properties;
+        using (var lzma = LzmaStream.Create(new LzmaEncoderProperties(), false, compressed))
+        {
+            properties = lzma.Properties;
+            lzma.Write(data);
+        }
+
+        byte[] payload = compressed.ToArray();
+        using var result = new MemoryStream(13 + payload.Length);
+        result.Write(properties);
+        result.Write(BitConverter.GetBytes((long)data.Length));
+        result.Write(payload);
+        return result.ToArray();
+    }
+
+    private readonly record struct ReplayLayout(
+        int OnlineIdOffset,
+        int OnlineIdLength,
+        int ScoreInfoLengthOffset,
+        int ScoreInfoDataOffset,
+        int ScoreInfoDataLength);
 
     private static string ReadOsuString(byte[] data, ref int position)
     {

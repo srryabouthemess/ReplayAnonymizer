@@ -8,4 +8,7 @@
     <AssemblyName>ReplayAnonymizer</AssemblyName>
     <RootNamespace>ReplayAnonymizer</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpCompress" Version="0.50.4" />
+  </ItemGroup>
 </Project>
