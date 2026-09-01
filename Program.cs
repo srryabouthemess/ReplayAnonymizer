@@ -128,7 +128,12 @@ internal sealed class MainForm : Form
     private readonly TextBox manualAlias = new();
     private readonly CheckBox repeatManualAliases = new();
     private readonly CheckBox samePlayerSameAlias = new();
+    private readonly ComboBox outputNaming = new();
     private readonly Label status = new();
+
+    private const string namingAliasAndMap = "Alias + informações do mapa (recomendado)";
+    private const string namingAliasAndNumber = "Alias + número";
+    private const string namingOriginal = "Manter nome original do arquivo";
 
     public MainForm()
     {
@@ -213,6 +218,16 @@ internal sealed class MainForm : Form
         outputRow.Controls.Add(outputFolder, 1, 0);
         outputRow.Controls.Add(chooseOutput, 2, 0);
 
+        outputNaming.DropDownStyle = ComboBoxStyle.DropDownList;
+        outputNaming.Items.AddRange([namingAliasAndMap, namingAliasAndNumber, namingOriginal]);
+        outputNaming.SelectedIndex = 0;
+        outputNaming.Dock = DockStyle.Fill;
+        var namingRow = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 2 };
+        namingRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        namingRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        namingRow.Controls.Add(new Label { Text = "Nome dos arquivos:", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
+        namingRow.Controls.Add(outputNaming, 1, 0);
+
         var process = new Button
         {
             Text = "Criar cópias anonimizadas",
@@ -235,7 +250,7 @@ internal sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(20),
-            RowCount = 8,
+            RowCount = 9,
             ColumnCount = 1
         };
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -246,6 +261,7 @@ internal sealed class MainForm : Form
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.Controls.Add(heading, 0, 0);
         layout.Controls.Add(description, 0, 1);
         layout.Controls.Add(buttons, 0, 2);
@@ -253,7 +269,8 @@ internal sealed class MainForm : Form
         layout.Controls.Add(grid, 0, 4);
         layout.Controls.Add(samePlayerSameAlias, 0, 5);
         layout.Controls.Add(outputRow, 0, 6);
-        layout.Controls.Add(footer, 0, 7);
+        layout.Controls.Add(namingRow, 0, 7);
+        layout.Controls.Add(footer, 0, 8);
         Controls.Add(layout);
 
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true ? DragDropEffects.Copy : DragDropEffects.None;
@@ -395,12 +412,14 @@ internal sealed class MainForm : Form
 
         int completed = 0;
         var failures = new List<string>();
-        foreach (ReplayItem item in items)
+        for (int index = 0; index < items.Count; index++)
         {
+            ReplayItem item = items[index];
             try
             {
                 string safeAlias = string.Concat(item.AnonymousName.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
-                string destination = UniquePath(outputFolder.Text, $"{safeAlias} - {Path.GetFileName(item.Path)}");
+                string outputFileName = BuildOutputFileName(item, safeAlias, index + 1);
+                string destination = UniquePath(outputFolder.Text, outputFileName);
                 OsrAnonymizer.WriteAnonymizedCopy(item.Path, destination, item.AnonymousName);
                 completed++;
             }
@@ -412,6 +431,33 @@ internal sealed class MainForm : Form
         if (failures.Count > 0) message += $"\n\nFalhas:\n{string.Join("\n", failures)}";
         MessageBox.Show(this, message, "Processamento concluído", MessageBoxButtons.OK,
             failures.Count == 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+    }
+
+    private string BuildOutputFileName(ReplayItem item, string safeAlias, int number)
+    {
+        string originalFileName = Path.GetFileName(item.Path);
+        if (outputNaming.SelectedItem?.ToString() == namingOriginal)
+            return originalFileName;
+        if (outputNaming.SelectedItem?.ToString() == namingAliasAndNumber)
+            return $"{safeAlias} - {number:D3}.osr";
+
+        string stem = Path.GetFileNameWithoutExtension(originalFileName);
+        string remainder = RemoveOriginalPlayerPrefix(stem, item.OriginalName);
+        return string.IsNullOrWhiteSpace(remainder)
+            ? $"{safeAlias} - {number:D3}.osr"
+            : $"{safeAlias} - {remainder}.osr";
+    }
+
+    private static string RemoveOriginalPlayerPrefix(string fileName, string playerName)
+    {
+        string[] separators = [" playing ", " - "];
+        foreach (string separator in separators)
+        {
+            string prefix = playerName + separator;
+            if (fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return fileName[prefix.Length..].Trim();
+        }
+        return string.Empty;
     }
 
     private static string UniquePath(string folder, string fileName)

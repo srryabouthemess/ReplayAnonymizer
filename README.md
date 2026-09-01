@@ -11,6 +11,7 @@ Unlike legacy replay editors, it changes only the player-name field and preserve
 - Generate unique random aliases.
 - Manually edit aliases or distribute a comma-separated list among selected replays.
 - Optionally repeat a shorter alias list until every selected replay has a name.
+- Choose safe output filenames: alias plus map information, alias plus sequence number, or the original filename.
 - Optionally use the same alias for every replay belonging to the same player.
 - Always create separate copies; source files are never modified.
 
@@ -20,6 +21,8 @@ Unlike legacy replay editors, it changes only the player-name field and preserve
 2. Add `.osr` files by dragging them into the window or using **Adicionar replays**.
 3. Review the generated aliases, edit the table directly, or select replays and enter custom aliases separated by commas.
 4. Choose an output folder and select **Criar cópias anonimizadas**.
+
+The default output naming mode removes the original player name from the filename. When the filename does not follow a recognised osu! pattern, the app safely falls back to the alias plus a sequence number.
 
 ## Building
 
