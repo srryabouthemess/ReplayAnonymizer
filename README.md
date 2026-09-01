@@ -63,8 +63,8 @@ Please open a [GitHub issue](https://github.com/srryabouthemess/ReplayAnonymizer
 
 ## Current limitations
 
-- Windows GUI only.
-- The generated executable is not digitally signed, so Windows SmartScreen may display a warning.
+- Official releases currently target 64-bit Windows. Prebuilt macOS and Linux versions are not available.
+- Release executables are not digitally signed, so Windows SmartScreen may display a warning on first launch.
 
 ## License
 
