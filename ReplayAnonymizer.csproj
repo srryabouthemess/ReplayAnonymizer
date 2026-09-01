@@ -7,6 +7,10 @@
     <Nullable>enable</Nullable>
     <AssemblyName>ReplayAnonymizer</AssemblyName>
     <RootNamespace>ReplayAnonymizer</RootNamespace>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SharpCompress" Version="0.50.4" />

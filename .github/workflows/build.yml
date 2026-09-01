@@ -17,7 +17,7 @@ jobs:
       - name: Build
         run: dotnet build -c Release
       - name: Publish portable executable
-        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -o publish
+        run: dotnet publish ReplayAnonymizer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o publish
       - uses: actions/upload-artifact@v4
         with:
           name: ReplayAnonymizer-win-x64
