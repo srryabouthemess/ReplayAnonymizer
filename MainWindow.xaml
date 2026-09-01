@@ -1,0 +1,167 @@
+<Window x:Class="ReplayAnonymizer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Replay Anonymizer para osu!" Width="1180" Height="760"
+        MinWidth="900" MinHeight="620" WindowStartupLocation="CenterScreen"
+        WindowStyle="None" Background="{StaticResource PageBrush}" Foreground="{StaticResource TextBrush}"
+        AllowDrop="True" DragOver="Window_DragOver" Drop="Window_Drop">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+    <Grid Background="{StaticResource PageBrush}">
+        <Grid.RowDefinitions><RowDefinition Height="42"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Border Grid.Row="0" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <TextBlock Text="  replay anonymizer" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource MutedBrush}"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="—" Width="46" Height="41" Padding="0" BorderThickness="0" Background="Transparent" Click="Minimize_Click"/>
+                    <Button Content="□" Width="46" Height="41" Padding="0" BorderThickness="0" Background="Transparent" Click="Maximize_Click"/>
+                    <Button Content="×" Width="46" Height="41" Padding="0" BorderThickness="0" Background="Transparent" Click="Close_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    <Grid Grid.Row="1" Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Replay Anonymizer" FontSize="30" FontWeight="SemiBold"/>
+                <TextBlock Text="Edite identidades em replays do stable e lazer, sem alterar os originais."
+                           Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,5,0,0"/>
+            </StackPanel>
+            <Border Grid.Column="1" Background="{StaticResource PanelAltBrush}" BorderBrush="#626672" BorderThickness="1" CornerRadius="16" Padding="14,7" VerticalAlignment="Center">
+                <TextBlock x:Name="ReplayCountText" Text="0 replays" Foreground="{StaticResource TextBrush}" FontWeight="SemiBold"/>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="14">
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="＋ Adicionar replays" Click="AddFiles_Click" Margin="0,0,8,0"/>
+                    <Button Content="＋ Adicionar pasta" Click="AddFolder_Click" Margin="0,0,8,0"/>
+                    <Button Content="Remover" Click="Remove_Click" Margin="0,0,8,0"/>
+                    <Button Content="↑" Click="MoveUp_Click" Width="42" Margin="0,0,6,0" ToolTip="Mover para cima (Alt+↑)"/>
+                    <Button Content="↓" Click="MoveDown_Click" Width="42" ToolTip="Mover para baixo (Alt+↓)"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="Você também pode arrastar arquivos ou uma pasta para a janela"
+                           Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="20,0,0,0"/>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="4" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="1">
+            <DataGrid x:Name="ReplayGrid" ItemsSource="{Binding Replays}" AutoGenerateColumns="False"
+                      Background="{StaticResource PanelBrush}" Foreground="{StaticResource TextBrush}"
+                      BorderThickness="0" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{StaticResource BorderBrush}"
+                      HeadersVisibility="Column" SelectionMode="Extended" SelectionUnit="FullRow"
+                      CanUserAddRows="False" CanUserDeleteRows="False" CanUserResizeRows="False"
+                      CanUserReorderColumns="False" RowHeight="38" ColumnHeaderHeight="38"
+                      AllowDrop="True" PreviewKeyDown="ReplayGrid_KeyDown"
+                      PreviewMouseLeftButtonDown="ReplayGrid_PreviewMouseLeftButtonDown"
+                      PreviewMouseRightButtonDown="ReplayGrid_PreviewMouseRightButtonDown"
+                      PreviewMouseMove="ReplayGrid_PreviewMouseMove"
+                      DragOver="ReplayGrid_DragOver" Drop="ReplayGrid_Drop">
+                <DataGrid.ContextMenu>
+                    <ContextMenu Background="{StaticResource PanelAltBrush}" Foreground="{StaticResource TextBrush}"
+                                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="4">
+                        <MenuItem Header="Remover selecionado(s)" Click="ContextRemove_Click"
+                                  Background="{StaticResource PanelAltBrush}" Foreground="{StaticResource TextBrush}" Padding="12,7"/>
+                    </ContextMenu>
+                </DataGrid.ContextMenu>
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="{StaticResource PanelAltBrush}"/>
+                        <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Padding" Value="10,0"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                    </Style>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="#484B55"/></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#292B35"/></Trigger>
+                        </Style.Triggers>
+                    </Style>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Padding" Value="10,0"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                        <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="Transparent"/></Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.Resources>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="#" Binding="{Binding Order}" Width="48" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Arquivo" Binding="{Binding FileName}" Width="*" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Nome original" Binding="{Binding OriginalName}" Width="190" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Nome editado" Binding="{Binding AnonymousName, UpdateSourceTrigger=PropertyChanged}" Width="210"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <Grid Grid.Row="6">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="1.15*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+
+            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="16">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <TextBlock Text="Nomes" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Button Content="Selecionar todos" Click="SelectAll_Click" HorizontalAlignment="Right" Padding="10,5"/>
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBox x:Name="ManualAliasText" ToolTip="Separe vários nomes por vírgulas"/>
+                        <Button Grid.Column="1" Content="Aplicar aos selecionados" Click="ApplyAliases_Click" Margin="8,0,0,0"/>
+                    </Grid>
+                    <Grid Margin="0,10,0,0">
+                        <CheckBox x:Name="RepeatAliasesCheck" Content="Repetir nomes até preencher todos" IsChecked="True"/>
+                        <Button Content="Gerar novos nomes" Click="Randomize_Click" HorizontalAlignment="Right" Padding="10,5"/>
+                    </Grid>
+                    <CheckBox x:Name="SamePlayerAliasCheck" Content="Usar o mesmo nome alterado para o mesmo jogador" IsChecked="True" Margin="0,10,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="16">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <TextBlock Text="Saída" FontSize="16" FontWeight="SemiBold"/>
+                    <Grid Grid.Row="1" Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBox x:Name="OutputFolderText" IsReadOnly="True" ToolTip="Escolha uma pasta de saída"/>
+                        <Button Grid.Column="1" Content="Escolher pasta" Click="ChooseOutput_Click" Margin="8,0,0,0"/>
+                    </Grid>
+                    <ComboBox x:Name="OutputNamingCombo" Grid.Row="2" Margin="0,10,0,0" SelectedIndex="0">
+                        <ComboBoxItem Content="Nome editado + informações do mapa"/>
+                        <ComboBoxItem Content="Nome editado + número"/>
+                        <ComboBoxItem Content="Manter nome original do arquivo"/>
+                    </ComboBox>
+                    <Grid Grid.Row="3" Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center" Margin="0,0,14,0">
+                            <TextBlock x:Name="StatusText" Text="Adicione replays para começar." Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
+                            <ProgressBar x:Name="ExportProgress" Height="4" Margin="0,7,0,0" Visibility="Collapsed" Foreground="{StaticResource AccentBrush}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" x:Name="ExportButton" Content="Aplicar edições" Style="{StaticResource PrimaryButton}" Click="Export_Click" HorizontalAlignment="Right"/>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+    </Grid>
+</Window>
