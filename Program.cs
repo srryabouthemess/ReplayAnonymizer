@@ -126,6 +126,7 @@ internal sealed class MainForm : Form
     private readonly List<ReplayItem> items = [];
     private readonly TextBox outputFolder = new();
     private readonly TextBox manualAlias = new();
+    private readonly CheckBox repeatManualAliases = new();
     private readonly CheckBox samePlayerSameAlias = new();
     private readonly Label status = new();
 
@@ -164,17 +165,23 @@ internal sealed class MainForm : Form
         var buttons = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = false };
         buttons.Controls.AddRange([addFiles, addFolder, remove, randomize]);
 
-        manualAlias.PlaceholderText = "Ex.: Cookiezi";
+        manualAlias.PlaceholderText = "Ex.: Cookiezi, mrekk, Lifeline";
         manualAlias.Dock = DockStyle.Fill;
         var applyAlias = new Button { Text = "Aplicar aos selecionados", AutoSize = true };
         applyAlias.Click += (_, _) => ApplyManualAlias();
-        var aliasRow = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3 };
+        repeatManualAliases.Text = "Repetir nomes até preencher todos";
+        repeatManualAliases.Checked = true;
+        repeatManualAliases.AutoSize = true;
+        repeatManualAliases.Anchor = AnchorStyles.Left;
+        var aliasRow = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 4 };
         aliasRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         aliasRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         aliasRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        aliasRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         aliasRow.Controls.Add(new Label { Text = "Alias manual:", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
         aliasRow.Controls.Add(manualAlias, 1, 0);
-        aliasRow.Controls.Add(applyAlias, 2, 0);
+        aliasRow.Controls.Add(repeatManualAliases, 2, 0);
+        aliasRow.Controls.Add(applyAlias, 3, 0);
 
         grid.Dock = DockStyle.Fill;
         grid.AutoGenerateColumns = false;
@@ -334,15 +341,17 @@ internal sealed class MainForm : Form
 
     private void ApplyManualAlias()
     {
-        string alias = manualAlias.Text.Trim();
-        if (alias.Length == 0)
+        string[] aliases = manualAlias.Text
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (aliases.Length == 0)
         {
-            MessageBox.Show(this, "Digite o alias que deseja aplicar.", "Alias vazio", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "Digite pelo menos um alias. Para usar vários, separe-os por vírgulas.", "Alias vazio", MessageBoxButtons.OK, MessageBoxIcon.Information);
             manualAlias.Focus();
             return;
         }
 
         var selected = grid.SelectedRows.Cast<DataGridViewRow>()
+            .OrderBy(row => row.Index)
             .Select(row => row.DataBoundItem as ReplayItem)
             .Where(item => item is not null)
             .Cast<ReplayItem>()
@@ -353,10 +362,14 @@ internal sealed class MainForm : Form
             return;
         }
 
-        foreach (ReplayItem item in selected)
-            item.AnonymousName = alias;
+        int count = repeatManualAliases.Checked ? selected.Count : Math.Min(selected.Count, aliases.Length);
+        for (int i = 0; i < count; i++)
+            selected[i].AnonymousName = aliases[i % aliases.Length];
         binding.ResetBindings(false);
-        status.Text = $"Alias “{alias}” aplicado a {selected.Count} replay(s).";
+        string repetition = repeatManualAliases.Checked && selected.Count > aliases.Length
+            ? " A lista foi repetida."
+            : string.Empty;
+        status.Text = $"{aliases.Length} nome(s) distribuído(s) entre {count} replay(s).{repetition}";
     }
 
     private void ChooseOutputFolder()

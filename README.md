@@ -9,7 +9,8 @@ Unlike legacy replay editors, it changes only the player-name field and preserve
 - Drag and drop individual replays or folders.
 - Process many replays at once.
 - Generate unique random aliases.
-- Manually edit aliases or apply one custom alias to multiple selected replays.
+- Manually edit aliases or distribute a comma-separated list among selected replays.
+- Optionally repeat a shorter alias list until every selected replay has a name.
 - Optionally use the same alias for every replay belonging to the same player.
 - Always create separate copies; source files are never modified.
 
@@ -17,7 +18,7 @@ Unlike legacy replay editors, it changes only the player-name field and preserve
 
 1. Download `ReplayAnonymizer.exe` from the latest release.
 2. Add `.osr` files by dragging them into the window or using **Adicionar replays**.
-3. Review the generated aliases, edit the table directly, or select replays and apply a custom alias.
+3. Review the generated aliases, edit the table directly, or select replays and enter custom aliases separated by commas.
 4. Choose an output folder and select **Criar cópias anonimizadas**.
 
 ## Building
