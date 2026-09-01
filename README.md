@@ -11,6 +11,8 @@ Unlike legacy replay editors, it preserves replay frames while anonymizing both 
 
 - Drag and drop individual replays or folders.
 - Process many replays at once.
+- Reorder replays before exporting; table order controls alias distribution and output numbering.
+- Show the current replay count and sequence number for every row.
 - Generate unique random aliases.
 - Manually edit aliases or distribute a comma-separated list among selected replays.
 - Optionally repeat a shorter alias list until every selected replay has a name.

@@ -22,6 +22,7 @@ internal static class Program
 
 internal sealed class ReplayItem
 {
+    public int Order { get; set; }
     public required string Path { get; init; }
     public required string OriginalName { get; init; }
     public string AnonymousName { get; set; } = string.Empty;
@@ -253,6 +254,7 @@ internal sealed class MainForm : Form
     private readonly CheckBox samePlayerSameAlias = new();
     private readonly ComboBox outputNaming = new();
     private readonly Label status = new();
+    private readonly Label replayCount = new();
 
     private const string namingAliasAndMap = "Alias + informações do mapa (Artista, música, dificuldade, etc e tals)";
     private const string namingAliasAndNumber = "Alias + número";
@@ -284,14 +286,21 @@ internal sealed class MainForm : Form
         var addFiles = new Button { Text = "Adicionar replays…", AutoSize = true };
         var addFolder = new Button { Text = "Adicionar pasta…", AutoSize = true };
         var remove = new Button { Text = "Remover selecionados", AutoSize = true };
+        var moveUp = new Button { Text = "Mover ↑", AutoSize = true };
+        var moveDown = new Button { Text = "Mover ↓", AutoSize = true };
         var randomize = new Button { Text = "Gerar novos nomes", AutoSize = true };
         addFiles.Click += (_, _) => AddFiles();
         addFolder.Click += (_, _) => AddFolder();
         remove.Click += (_, _) => RemoveSelected();
+        moveUp.Click += (_, _) => MoveSelected(-1);
+        moveDown.Click += (_, _) => MoveSelected(1);
         randomize.Click += (_, _) => GenerateAliases();
 
         var buttons = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = false };
-        buttons.Controls.AddRange([addFiles, addFolder, remove, randomize]);
+        replayCount.AutoSize = true;
+        replayCount.ForeColor = Color.DimGray;
+        replayCount.Padding = new Padding(8, 7, 0, 0);
+        buttons.Controls.AddRange([addFiles, addFolder, remove, moveUp, moveDown, randomize, replayCount]);
 
         manualAlias.PlaceholderText = "Ex.: Cookiezi, mrekk, Lifeline";
         manualAlias.Dock = DockStyle.Fill;
@@ -319,11 +328,19 @@ internal sealed class MainForm : Form
         grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         grid.RowHeadersVisible = false;
+        grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "#", DataPropertyName = "Order", Width = 42, MinimumWidth = 42, AutoSizeMode = DataGridViewAutoSizeColumnMode.None, ReadOnly = true });
         grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Arquivo", DataPropertyName = "Path", FillWeight = 55, ReadOnly = true });
         grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Nome original", DataPropertyName = "OriginalName", FillWeight = 20, ReadOnly = true });
         grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Nome editado", DataPropertyName = "AnonymousName", FillWeight = 25 });
         binding.DataSource = items;
         grid.DataSource = binding;
+        UpdateReplayOrderAndCount();
+        grid.KeyDown += (_, e) =>
+        {
+            if (!e.Alt || (e.KeyCode != Keys.Up && e.KeyCode != Keys.Down)) return;
+            MoveSelected(e.KeyCode == Keys.Up ? -1 : 1);
+            e.Handled = true;
+        };
 
         outputFolder.Text = string.Empty;
         outputFolder.PlaceholderText = "Escolha uma pasta de saída…";
@@ -446,6 +463,7 @@ internal sealed class MainForm : Form
             }
         }
         GenerateAliases();
+        UpdateReplayOrderAndCount();
         binding.ResetBindings(false);
         status.Text = added == 0 ? "Nenhum replay novo foi adicionado." : $"{added} replay(s) adicionado(s).";
     }
@@ -458,8 +476,49 @@ internal sealed class MainForm : Form
             .Cast<ReplayItem>()
             .ToList();
         foreach (var item in selected) items.Remove(item);
+        UpdateReplayOrderAndCount();
         binding.ResetBindings(false);
         status.Text = $"{items.Count} replay(s) na lista.";
+    }
+
+    private void MoveSelected(int direction)
+    {
+        var selectedItems = grid.SelectedRows.Cast<DataGridViewRow>()
+            .Select(row => row.DataBoundItem as ReplayItem)
+            .Where(item => item is not null)
+            .Cast<ReplayItem>()
+            .ToHashSet();
+        if (selectedItems.Count == 0) return;
+
+        if (direction < 0)
+        {
+            for (int i = 1; i < items.Count; i++)
+            {
+                if (selectedItems.Contains(items[i]) && !selectedItems.Contains(items[i - 1]))
+                    (items[i - 1], items[i]) = (items[i], items[i - 1]);
+            }
+        }
+        else
+        {
+            for (int i = items.Count - 2; i >= 0; i--)
+            {
+                if (selectedItems.Contains(items[i]) && !selectedItems.Contains(items[i + 1]))
+                    (items[i], items[i + 1]) = (items[i + 1], items[i]);
+            }
+        }
+
+        UpdateReplayOrderAndCount();
+        binding.ResetBindings(false);
+        grid.ClearSelection();
+        foreach (DataGridViewRow row in grid.Rows)
+            row.Selected = row.DataBoundItem is ReplayItem item && selectedItems.Contains(item);
+        status.Text = $"{selectedItems.Count} replay(s) movido(s) na ordem da lista.";
+    }
+
+    private void UpdateReplayOrderAndCount()
+    {
+        for (int i = 0; i < items.Count; i++) items[i].Order = i + 1;
+        replayCount.Text = items.Count == 1 ? "1 replay" : $"{items.Count} replays";
     }
 
     private void GenerateAliases()
