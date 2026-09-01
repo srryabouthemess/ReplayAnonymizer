@@ -125,6 +125,7 @@ internal sealed class MainForm : Form
     private readonly BindingSource binding = new();
     private readonly List<ReplayItem> items = [];
     private readonly TextBox outputFolder = new();
+    private readonly TextBox manualAlias = new();
     private readonly CheckBox samePlayerSameAlias = new();
     private readonly Label status = new();
 
@@ -162,6 +163,18 @@ internal sealed class MainForm : Form
 
         var buttons = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = false };
         buttons.Controls.AddRange([addFiles, addFolder, remove, randomize]);
+
+        manualAlias.PlaceholderText = "Ex.: Cookiezi";
+        manualAlias.Dock = DockStyle.Fill;
+        var applyAlias = new Button { Text = "Aplicar aos selecionados", AutoSize = true };
+        applyAlias.Click += (_, _) => ApplyManualAlias();
+        var aliasRow = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3 };
+        aliasRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        aliasRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        aliasRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        aliasRow.Controls.Add(new Label { Text = "Alias manual:", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0);
+        aliasRow.Controls.Add(manualAlias, 1, 0);
+        aliasRow.Controls.Add(applyAlias, 2, 0);
 
         grid.Dock = DockStyle.Fill;
         grid.AutoGenerateColumns = false;
@@ -215,9 +228,10 @@ internal sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(20),
-            RowCount = 7,
+            RowCount = 8,
             ColumnCount = 1
         };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -228,10 +242,11 @@ internal sealed class MainForm : Form
         layout.Controls.Add(heading, 0, 0);
         layout.Controls.Add(description, 0, 1);
         layout.Controls.Add(buttons, 0, 2);
-        layout.Controls.Add(grid, 0, 3);
-        layout.Controls.Add(samePlayerSameAlias, 0, 4);
-        layout.Controls.Add(outputRow, 0, 5);
-        layout.Controls.Add(footer, 0, 6);
+        layout.Controls.Add(aliasRow, 0, 3);
+        layout.Controls.Add(grid, 0, 4);
+        layout.Controls.Add(samePlayerSameAlias, 0, 5);
+        layout.Controls.Add(outputRow, 0, 6);
+        layout.Controls.Add(footer, 0, 7);
         Controls.Add(layout);
 
         DragEnter += (_, e) => e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true ? DragDropEffects.Copy : DragDropEffects.None;
@@ -315,6 +330,33 @@ internal sealed class MainForm : Form
             if (samePlayerSameAlias.Checked) byPlayer[item.OriginalName] = alias;
         }
         binding.ResetBindings(false);
+    }
+
+    private void ApplyManualAlias()
+    {
+        string alias = manualAlias.Text.Trim();
+        if (alias.Length == 0)
+        {
+            MessageBox.Show(this, "Digite o alias que deseja aplicar.", "Alias vazio", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            manualAlias.Focus();
+            return;
+        }
+
+        var selected = grid.SelectedRows.Cast<DataGridViewRow>()
+            .Select(row => row.DataBoundItem as ReplayItem)
+            .Where(item => item is not null)
+            .Cast<ReplayItem>()
+            .ToList();
+        if (selected.Count == 0)
+        {
+            MessageBox.Show(this, "Selecione pelo menos um replay na tabela.", "Nenhum replay selecionado", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        foreach (ReplayItem item in selected)
+            item.AnonymousName = alias;
+        binding.ResetBindings(false);
+        status.Text = $"Alias “{alias}” aplicado a {selected.Count} replay(s).";
     }
 
     private void ChooseOutputFolder()
