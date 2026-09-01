@@ -40,7 +40,7 @@ internal static class OsrAnonymizer
     public static void WriteAnonymizedCopy(string source, string destination, string newName)
     {
         if (string.IsNullOrWhiteSpace(newName))
-            throw new ArgumentException("O pseudônimo não pode ficar vazio.");
+            throw new ArgumentException("O nome editado não pode ficar vazio.");
 
         byte[] data = File.ReadAllBytes(source);
         if (data.Length < 6)
@@ -254,7 +254,7 @@ internal sealed class MainForm : Form
     private readonly ComboBox outputNaming = new();
     private readonly Label status = new();
 
-    private const string namingAliasAndMap = "Alias + informações do mapa (recomendado)";
+    private const string namingAliasAndMap = "Alias + informações do mapa (Artista, música, dificuldade, etc e tals)";
     private const string namingAliasAndNumber = "Alias + número";
     private const string namingOriginal = "Manter nome original do arquivo";
 
@@ -276,7 +276,7 @@ internal sealed class MainForm : Form
         };
         var description = new Label
         {
-            Text = "Arraste replays para esta janela ou selecione vários arquivos. Os originais nunca são alterados.",
+            Text = "Arraste replays para esta janela ou selecione vários arquivos. Os originais não serão alterados.",
             AutoSize = true,
             ForeColor = Color.DimGray
         };
@@ -321,15 +321,17 @@ internal sealed class MainForm : Form
         grid.RowHeadersVisible = false;
         grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Arquivo", DataPropertyName = "Path", FillWeight = 55, ReadOnly = true });
         grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Nome original", DataPropertyName = "OriginalName", FillWeight = 20, ReadOnly = true });
-        grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Pseudônimo", DataPropertyName = "AnonymousName", FillWeight = 25 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Nome editado", DataPropertyName = "AnonymousName", FillWeight = 25 });
         binding.DataSource = items;
         grid.DataSource = binding;
 
-        outputFolder.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Replays anonimizados");
+        outputFolder.Text = string.Empty;
+        outputFolder.PlaceholderText = "Escolha uma pasta de saída…";
+        outputFolder.ReadOnly = true;
         outputFolder.Dock = DockStyle.Fill;
         var chooseOutput = new Button { Text = "Escolher…", AutoSize = true };
         chooseOutput.Click += (_, _) => ChooseOutputFolder();
-        samePlayerSameAlias.Text = "Usar o mesmo pseudônimo para o mesmo jogador";
+        samePlayerSameAlias.Text = "Usar o mesmo nome (alterado) para o mesmo jogador";
         samePlayerSameAlias.Checked = true;
         samePlayerSameAlias.AutoSize = true;
 
@@ -353,7 +355,7 @@ internal sealed class MainForm : Form
 
         var process = new Button
         {
-            Text = "Criar cópias anonimizadas",
+            Text = "Aplicar edições",
             AutoSize = true,
             Padding = new Padding(12, 6, 12, 6),
             Anchor = AnchorStyles.Right
